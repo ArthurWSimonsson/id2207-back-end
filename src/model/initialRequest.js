@@ -11,6 +11,7 @@ const initialRequestSchema = new mongoose.Schema({
     photos: { type: Boolean },
     food: { type: Boolean },
     drinks: { type: Boolean },
+    currentResponsible: {type: String},
   });
   
   module.exports = mongoose.model("initialRequest", initialRequestSchema);
