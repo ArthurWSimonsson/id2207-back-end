@@ -12,8 +12,9 @@ app.use(cors());
 app.use(express.json());
 
 const User = require("./model/user");
-const InitialRequest = require("./model/initialRequest")
-const Task = require("./model/task")
+const InitialRequest = require("./model/initialRequest");
+const Task = require("./model/task");
+const RecruitmentRequest = require("./model/recruitmentRequest");
 
 const auth = require("./middleware/auth");
 
@@ -167,6 +168,8 @@ app.post("/login", async (req, res) => {
         }
         );
 
+    res.status(201).send('ok');
+
     } catch (err) {
       console.log(err);
     }
@@ -174,12 +177,13 @@ app.post("/login", async (req, res) => {
 
   app.post('/storeTask', auth, async(req, res) => {
     try {
-      const {recordNumber, description, assignee, priority} = req.body;
+      const {recordNumber, description, assignee, priority, department} = req.body;
       const task = Task.create({
         recordNumber,
         description,
         assignee,
-        priority
+        priority,
+        department,
       })
 
       res.status(200).json(task);
@@ -188,6 +192,64 @@ app.post("/login", async (req, res) => {
       console.log(err);
     }
   })
+
+  app.get("/taskList", auth, async(req, res) => {
+    try{
+      const list = await Task.find({})
+
+      res.status(200).json(list);
+    }
+    catch (err) {
+      console.log(err)
+    }
+  })
   
+  //{ $push: { friends: friend } },
+  //done
+
+
+  app.post("/addNoteTask", auth, async(req, res) => {
+    try {
+      const {note} = req.body;
+      await Task.updateOne(
+      {_id: req.body.id},
+      { $push: {notes: note}}
+      )
+
+      res.status(200).send('OK');
+    }
+    catch(err) {
+      console.log(err);
+    } 
+  })
+
+  app.post('/addRecruitmentRequest', auth, async(req, res) => {
+    try {
+      const {duration, department, years, title, description} = req.body;
+      const request = await RecruitmentRequest.create({
+        duration,
+        department,
+        years,
+        title,
+        description,
+        status:'unhandled',
+      })
+      res.status(201).json(request);
+    }
+    catch (err) {
+      console.log(err);
+    }
+  })
+
+  app.get('/recruitmentList', auth, async(req, res) => {
+    try {
+      const list = await RecruitmentRequest.find({});
+      console.log('list', list);
+      res.status(200).json(list);
+    } catch(err) {
+      console.log('recruitmentlist error', err);
+    }
+  })
+
 
 module.exports = app;

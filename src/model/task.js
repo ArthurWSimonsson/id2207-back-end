@@ -5,6 +5,8 @@ const taskSchema = new mongoose.Schema({
     description: { type: String },
     assignee: { type: String },
     priority: { type: String },
+    department: {type: String},
+    notes: [{type: String}],
   });
   
   module.exports = mongoose.model("task", taskSchema);
