@@ -4,6 +4,7 @@ const express = require("express");
 var cors = require('cors');
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
+var ObjectID = require('mongodb').ObjectID;
 
 const app = express();
 
@@ -15,6 +16,7 @@ const User = require("./model/user");
 const InitialRequest = require("./model/initialRequest");
 const Task = require("./model/task");
 const RecruitmentRequest = require("./model/recruitmentRequest");
+const FinancialRequest = require("./model/financialRequest");
 
 const auth = require("./middleware/auth");
 
@@ -23,14 +25,11 @@ app.post("/welcome", auth, (req, res) => {
 });
 
 
-// Register
 app.post("/register", async (req, res) => {
     try {
-        // Get user input
         const { role, password } = req.body;
         console.log("role", role);
     
-        // Validate user input
         if (!(role && password)) {
           res.status(400).send("All input is required");
         }
@@ -40,57 +39,44 @@ app.post("/register", async (req, res) => {
         if (oldUser) {
           return res.status(409).send("User Already Exist. Please Login");
         }
-    
-        //Encrypt user password
         encryptedPassword = await bcrypt.hash(password, 10);
     
-        // Create user in our database
         const user = await User.create({
           role,
           password: encryptedPassword,
         });
     
-        // Create token
         const token = jwt.sign(
           { user_id: user._id, role },
           process.env.TOKEN_KEY,
         );
-        // save user token
+        
         user.token = token;
     
-        // return new user
         res.status(201).json(user);
       } catch (err) {
         console.log(err);
       }
-      // Our register logic ends here
 });
 
 app.post("/login", async (req, res) => {
 
-    // Our login logic starts here
     try {
-      // Get user input
       const { role, password } = req.body;
   
-      // Validate user input
       if (!(role && password)) {
         res.status(400).send("All input is required");
       }
-      // Validate if user exist in our database
       const user = await User.findOne({ role });
   
       if (user && (await bcrypt.compare(password, user.password))) {
-        // Create token
         const token = jwt.sign(
           { user_id: user._id, role },
           process.env.TOKEN_KEY,
         );
   
-        // save user token
         user.token = token;
   
-        // user
         res.status(200).json(user);
       }
       else {
@@ -106,15 +92,13 @@ app.post("/login", async (req, res) => {
             const {recordNumber, clientName, eventType, attendees,
                  budget, decorations, parties, photos, food, drinks, role} = req.body;
 
-          console.log(req.body)
-
           const old = await InitialRequest.findOne({recordNumber});
 
           if (old) {
             return res.status(409).send("Event with record number already exists");
           }
 
-          const initialRequest = InitialRequest.create({
+          const initialRequest = await InitialRequest.create({
             recordNumber,
             clientName,
             eventType,
@@ -128,10 +112,10 @@ app.post("/login", async (req, res) => {
             currentResponsible: role
           })
 
-            res.status(200).json(initialRequest)
+          res.status(200).json(initialRequest)
         }
         catch (err) {
-            console.log(err);
+          console.log(err);
       }
   })
 
@@ -168,9 +152,21 @@ app.post("/login", async (req, res) => {
         }
         );
 
-    res.status(201).send('ok');
+    res.status(200).send('ok');
 
     } catch (err) {
+      console.log(err);
+    }
+  })
+
+  app.post('/deleteInitialRequest', auth, async(req,res) => {
+    try {
+      const request = await InitialRequest.findOne({recordNumber:req.body.recordNumber});
+      const _id = new ObjectID(request._id);
+      await InitialRequest.deleteOne({_id:_id});
+      res.status(200).send('Ok');
+    }
+    catch (err) {
       console.log(err);
     }
   })
@@ -203,9 +199,6 @@ app.post("/login", async (req, res) => {
       console.log(err)
     }
   })
-  
-  //{ $push: { friends: friend } },
-  //done
 
 
   app.post("/addNoteTask", auth, async(req, res) => {
@@ -234,7 +227,7 @@ app.post("/login", async (req, res) => {
         description,
         status:'unhandled',
       })
-      res.status(201).json(request);
+      res.status(200).json(request);
     }
     catch (err) {
       console.log(err);
@@ -244,12 +237,70 @@ app.post("/login", async (req, res) => {
   app.get('/recruitmentList', auth, async(req, res) => {
     try {
       const list = await RecruitmentRequest.find({});
-      console.log('list', list);
       res.status(200).json(list);
     } catch(err) {
       console.log('recruitmentlist error', err);
     }
   })
 
+  app.post('/changeRecruitmentStatus', auth, async(req,res) => {
+    try {
+      const {id, status} = req.body;
+      await RecruitmentRequest.updateOne(
+        {_id: id}, 
+        {$set: {
+          status: status,
+        }},
+      )
 
+      res.status(201).send('OK');
+    }
+    catch(err) {
+      console.log('status change error', err);
+    }
+  })
+
+  app.post('/addFinancialRequest', auth, async(req, res) => {
+    try {
+      const {reference, department, amount, reason} = req.body;
+      const request = await FinancialRequest.create({
+        reference,
+        department,
+        amount,
+        reason,
+        status:'unhandled',
+      })
+      res.status(200).json(request);
+    }
+    catch (err) {
+      console.log(err);
+    }
+  })
+
+  app.get('/financialList', auth, async(req, res) => {
+    try {
+      const list = await FinancialRequest.find({});
+      res.status(200).json(list);
+    }
+    catch (err) {
+      console.log(err);
+    }
+  })
+
+  app.post('/changeFinancialStatus', auth, async(req,res) => {
+    try {
+      const {id, status} = req.body;
+      await FinancialRequest.updateOne(
+        {_id: id}, 
+        {$set: {
+          status: status,
+        }},
+      )
+
+      res.status(201).send('OK');
+    }
+    catch(err) {
+      console.log('status change error', err);
+    }
+  })
 module.exports = app;
